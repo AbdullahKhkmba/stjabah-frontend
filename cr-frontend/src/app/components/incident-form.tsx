@@ -2,24 +2,30 @@ import { useState } from "react";
 import { X, MapPin } from "lucide-react";
 
 interface IncidentFormProps {
-  onSubmit: (x: number, y: number) => void;
+  onSubmit: (x: number, y: number) => void | Promise<void>;
   onClose: () => void;
 }
 
 export function IncidentForm({ onSubmit, onClose }: IncidentFormProps) {
   const [x, setX] = useState("");
   const [y, setY] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const xVal = parseInt(x);
     const yVal = parseInt(y);
-    
-    if (xVal >= 0 && xVal <= 100 && yVal >= 0 && yVal <= 100) {
-      onSubmit(xVal, yVal);
-      onClose();
-    } else {
+
+    if (xVal < 0 || xVal > 100 || yVal < 0 || yVal > 100) {
       alert("Coordinates must be between 0 and 100");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit(xVal, yVal);
+      onClose();
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -78,9 +84,10 @@ export function IncidentForm({ onSubmit, onClose }: IncidentFormProps) {
           <div className="flex gap-3 pt-4">
             <button
               type="submit"
-              className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold"
+              disabled={submitting}
+              className="flex-1 bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Create Incident
+              {submitting ? "Creating..." : "Create Incident"}
             </button>
             <button
               type="button"

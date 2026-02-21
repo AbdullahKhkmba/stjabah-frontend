@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
+import { createIncident, fetchIncidents } from "./api/incidents";
 import { FactoryMap } from "./components/factory-map";
 import { IncidentForm } from "./components/incident-form";
 import { IncidentControl } from "./components/incident-control";
@@ -10,18 +11,33 @@ export default function App() {
   const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
   const [incidentHistory, setIncidentHistory] = useState<Incident[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [incidentCounter, setIncidentCounter] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreateIncident = (x: number, y: number) => {
-    const newIncident: Incident = {
-      id: `INC-${String(incidentCounter).padStart(4, "0")}`,
-      x,
-      y,
-      status: "active",
-      timestamp: new Date().toLocaleString(),
-    };
-    setActiveIncident(newIncident);
-    setIncidentCounter(incidentCounter + 1);
+  const loadIncidents = async () => {
+    try {
+      const { active } = await fetchIncidents();
+      setActiveIncident(active);
+      //setIncidentHistory(history); !TODO: Integrate after implementation in config/incidents.ts.
+    } catch (e) {
+      console.error("Failed to load incidents:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadIncidents();
+  }, []);
+
+  const handleCreateIncident = async (x: number, y: number) => {
+    try {
+      await createIncident({ x, y });
+      await loadIncidents();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to create incident";
+      alert(message);
+      throw e;
+    }
   };
 
   const handleUpdateIncident = (x: number, y: number) => {
@@ -74,6 +90,15 @@ export default function App() {
       setActiveIncident(null);
     }
   };
+
+  if (loading) {
+    // !TODO: Add a System initializing loading screen
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-600">Loading incidents...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

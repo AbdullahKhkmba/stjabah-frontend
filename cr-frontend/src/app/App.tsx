@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
-import { createIncident, fetchIncidents } from "./api/incidents";
+import { createIncident, deleteIncident, dispatchIncident, fetchIncidents, updateIncident } from "./api/incidents";
 import { FactoryMap } from "./components/factory-map";
 import { IncidentForm } from "./components/incident-form";
 import { IncidentControl } from "./components/incident-control";
 import { IncidentHistory } from "./components/incident-history";
-import { Incident, Unit } from "./components/types";
+import { Incident } from "./components/types";
 
 export default function App() {
   const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
   const [incidentHistory, setIncidentHistory] = useState<Incident[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [mapPick, setMapPick] = useState<{ x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
-
+  console.log(activeIncident);
   const loadIncidents = async () => {
     try {
       const { active } = await fetchIncidents();
@@ -40,43 +41,39 @@ export default function App() {
     }
   };
 
-  const handleUpdateIncident = (x: number, y: number) => {
-    if (activeIncident) {
-      setActiveIncident({
-        ...activeIncident,
-        x,
-        y,
-      });
+  const handleUpdateIncident = async (x: number, y: number) => {
+    if (!activeIncident?.id) return;
+    try {
+      const updated = await updateIncident(activeIncident.id, { x, y });
+      console.log(updated);
+      setActiveIncident(updated);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to update incident";
+      alert(message);
+      throw e;
     }
   };
 
-  const handleDeleteIncident = () => {
-    setActiveIncident(null);
+  const handleDeleteIncident = async () => {
+    if (!activeIncident?.id) return;
+    try {
+      await deleteIncident(activeIncident.id);
+      await loadIncidents();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to delete incident";
+      alert(message);
+      throw e;
+    }
   };
 
-  const handleDispatchIncident = () => {
-    if (activeIncident) {
-      // Simulate units acknowledging and responding to incident
-      const units: Unit[] = [
-        {
-          id: "UNIT-1",
-          name: "Safety Team A",
-          x: Math.max(0, activeIncident.x - 15),
-          y: Math.max(0, activeIncident.y - 10),
-        },
-        {
-          id: "UNIT-2",
-          name: "Fire Brigade",
-          x: Math.min(100, activeIncident.x + 20),
-          y: Math.max(0, activeIncident.y - 5),
-        },
-      ];
-
-      setActiveIncident({
-        ...activeIncident,
-        status: "dispatched",
-        units,
-      });
+  const handleDispatchIncident = async () => {
+    if (!activeIncident?.id) return;
+    try {
+      const dispatched = await dispatchIncident();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to dispatch incident";
+      alert(message);
+      throw e;
     }
   };
 
@@ -142,7 +139,11 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Map View */}
           <div className="lg:col-span-2">
-            <FactoryMap incident={activeIncident} />
+            <FactoryMap
+              incident={activeIncident}
+              incidentHistory={incidentHistory}
+              onMapClick={showForm ? (x, y) => setMapPick({ x, y }) : undefined}
+            />
           </div>
 
           {/* Control Panel */}
@@ -180,7 +181,11 @@ export default function App() {
       {showForm && !activeIncident && (
         <IncidentForm
           onSubmit={handleCreateIncident}
-          onClose={() => setShowForm(false)}
+          onClose={() => {
+            setShowForm(false);
+            setMapPick(null);
+          }}
+          mapPick={mapPick}
         />
       )}
     </div>

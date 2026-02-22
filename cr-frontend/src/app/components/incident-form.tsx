@@ -1,22 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, MapPin } from "lucide-react";
 
 interface IncidentFormProps {
   onSubmit: (x: number, y: number) => void | Promise<void>;
   onClose: () => void;
+  mapPick?: { x: number; y: number } | null;
 }
 
-export function IncidentForm({ onSubmit, onClose }: IncidentFormProps) {
+export function IncidentForm({ onSubmit, onClose, mapPick }: IncidentFormProps) {
   const [x, setX] = useState("");
   const [y, setY] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (mapPick) {
+      setX(String(mapPick.x));
+      setY(String(mapPick.y));
+    }
+  }, [mapPick]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const xVal = parseInt(x);
-    const yVal = parseInt(y);
+    const xVal = parseFloat(x);
+    const yVal = parseFloat(y);
 
-    if (xVal < 0 || xVal > 100 || yVal < 0 || yVal > 100) {
+    if (isNaN(xVal) || isNaN(yVal) || xVal < 0 || xVal > 100 || yVal < 0 || yVal > 100) {
       alert("Coordinates must be between 0 and 100");
       return;
     }
@@ -30,8 +38,9 @@ export function IncidentForm({ onSubmit, onClose }: IncidentFormProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <div className="fixed inset-0 z-50 flex justify-end pointer-events-none">
+      {/* Form panel - map (left side) stays clickable for place-picking */}
+      <div className="w-full max-w-md bg-white shadow-2xl flex flex-col max-h-screen overflow-auto pointer-events-auto border-l">
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-3">
             <MapPin className="size-6 text-red-600" />
@@ -76,9 +85,11 @@ export function IncidentForm({ onSubmit, onClose }: IncidentFormProps) {
           
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
             <p className="font-semibold mb-1">Grid Information:</p>
-            <p>Factory floor uses a 100x100 coordinate system</p>
-            <p>X: 0 (left) to 100 (right)</p>
-            <p>Y: 0 (top) to 100 (bottom)</p>
+            <p>Click on the map to pick a location, or enter coordinates manually.</p>
+            <p>X: 0 (left) to 100 (right) · Y: 0 (top) to 100 (bottom)</p>
+            {mapPick && (
+              <p className="mt-2 text-green-700 font-medium">✓ Picked from map</p>
+            )}
           </div>
           
           <div className="flex gap-3 pt-4">

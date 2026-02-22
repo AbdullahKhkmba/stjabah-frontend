@@ -16,10 +16,10 @@ export function IncidentControl({ incident, onUpdate, onDelete, onDispatch, onRe
   const [y, setY] = useState(String(incident.y));
 
   const handleUpdate = () => {
-    const xVal = parseInt(x);
-    const yVal = parseInt(y);
-    
-    if (xVal >= 0 && xVal <= 100 && yVal >= 0 && yVal <= 100) {
+    const xVal = parseFloat(x);
+    const yVal = parseFloat(y);
+
+    if (!isNaN(xVal) && !isNaN(yVal) && xVal >= 0 && xVal <= 100 && yVal >= 0 && yVal <= 100) {
       onUpdate(xVal, yVal);
       setIsEditing(false);
     } else {
@@ -115,8 +115,18 @@ export function IncidentControl({ incident, onUpdate, onDelete, onDispatch, onRe
         <div className="space-y-2">
           {!isEditing ? (
             <>
-              {incident.status === "active" && (
-                <>
+              {incident.status === "dispatched" && (
+                <button
+                  onClick={onResolve}
+                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <CheckCircle className="size-4" />
+                  Mark as Resolved
+                </button>
+              )}
+              
+              {incident.status !== "resolved" && (
+              <>
                   <button
                     onClick={() => setIsEditing(true)}
                     className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 transition-colors"
@@ -131,27 +141,15 @@ export function IncidentControl({ incident, onUpdate, onDelete, onDispatch, onRe
                     <Send className="size-4" />
                     Dispatch Units
                   </button>
-                </>
-              )}
-              
-              {incident.status === "dispatched" && (
-                <button
-                  onClick={onResolve}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <CheckCircle className="size-4" />
-                  Mark as Resolved
-                </button>
-              )}
-              
-              {incident.status !== "resolved" && (
-                <button
-                  onClick={onDelete}
-                  className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 className="size-4" />
-                  Delete Incident
-                </button>
+                
+                  <button
+                    onClick={onDelete}
+                    className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash2 className="size-4" />
+                    Delete Incident
+                  </button>
+              </>
               )}
             </>
           ) : (

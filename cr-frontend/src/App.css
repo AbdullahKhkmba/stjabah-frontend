@@ -65,5 +65,10 @@
 /* Form layout helpers */
 .form-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap }
 .form-field{ display:flex; flex-direction:column }
-.form-input{ width: 160px; max-width: 100%; box-sizing: border-box; padding:8px; border:1px solid rgba(15,23,42,0.06); border-radius:6px }
+.form-input{ width: 160px; max-width: 100%; box-sizing: border-box; padding:8px; border:1px solid rgba(15,23,42,0.06); border-radius:6px;flex-grow: 1; }
 .btn-row{ display:flex; gap:8px; align-items:center }
+
+/* Map incident marker - emergency beacon style */
+.leaflet-marker-icon.incident-marker { background: none !important; border: none !important; }
+.incident-marker .incident-pulse { animation: incident-pulse 2s ease-in-out infinite; transform-origin: center; }
+@keyframes incident-pulse { 0%, 100% { transform: scale(0.9); } 50% { transform: scale(1); } }

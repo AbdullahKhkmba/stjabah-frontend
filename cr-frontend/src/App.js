@@ -60,7 +60,7 @@ export default function App() {
       <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
           <h1>CR Dashboard</h1>
-          <div className="header-sub">Incident & Vehicle monitoring · Wind info</div>
+          <div className="header-sub">Incident & Vehicle monitoring</div>
         </div>
         <button className="btn secondary" onClick={refresh} style={{ marginLeft: 'auto' }}>Refresh</button>
       </header>

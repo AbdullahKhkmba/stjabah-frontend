@@ -22,9 +22,7 @@ export default function MapDisplay({
   const [routesVisible, setRoutesVisible] = useState(false)
   const clickHandlerRef = useRef(onMapClick)
 
-  useEffect(() => {
-    clickHandlerRef.current = onMapClick
-  }, [onMapClick])
+  useEffect(() => { clickHandlerRef.current = onMapClick }, [onMapClick])
 
   const CENTER = [30.063584, 31.488994]
   const ZOOM = 15
@@ -93,12 +91,7 @@ export default function MapDisplay({
         if (data.code === 'Ok') {
           const route = data.routes[0]
           const coords = route.geometry.coordinates.map((c) => [c[1], c[0]])
-          const line = L.polyline(coords, {
-            color,
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10',
-          }).addTo(map)
+          const line = L.polyline(coords, { color, weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(map)
           const distKm = (route.distance / 1000).toFixed(2)
           const labelMarker = L.marker(fromLatLng, {
             icon: L.divIcon({
@@ -110,22 +103,12 @@ export default function MapDisplay({
           }).addTo(map)
           routesRef.current.push({ route: line, label: labelMarker })
         } else {
-          const line = L.polyline([fromLatLng, toLatLng], {
-            color: '#94a3b8',
-            weight: 2,
-            opacity: 0.5,
-            dashArray: '5, 5',
-          }).addTo(map)
+          const line = L.polyline([fromLatLng, toLatLng], { color: '#94a3b8', weight: 2, opacity: 0.5, dashArray: '5, 5' }).addTo(map)
           routesRef.current.push({ route: line, label: null })
         }
       })
       .catch(() => {
-        const line = L.polyline([fromLatLng, toLatLng], {
-          color: '#94a3b8',
-          weight: 2,
-          opacity: 0.5,
-          dashArray: '5, 5',
-        }).addTo(map)
+        const line = L.polyline([fromLatLng, toLatLng], { color: '#94a3b8', weight: 2, opacity: 0.5, dashArray: '5, 5' }).addTo(map)
         routesRef.current.push({ route: line, label: null })
       })
   }
@@ -143,7 +126,6 @@ export default function MapDisplay({
     const incLoc = getLoc(selectedIncident)
     const incLatLng = incLoc ? normToLatLng(incLoc) : null
     if (!incLatLng) return
-
     const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444']
     units.forEach((u, i) => {
       const loc = getLoc(u)
@@ -187,12 +169,10 @@ export default function MapDisplay({
         attribution: '© OpenStreetMap | OSRM',
         maxZoom: 19,
       }).addTo(map)
-
       map.on('click', (e) => {
         const norm = latLngToNorm(e.latlng.lat, e.latlng.lng)
         clickHandlerRef.current?.(norm)
       })
-
       mapInstanceRef.current = map
       setTimeout(updateMarkers, 100)
     }
@@ -257,9 +237,7 @@ export default function MapDisplay({
     })
 
     clearRoutes()
-    if (routesVisible && selectedIncident && units.length > 0) {
-      drawRoutes()
-    }
+    if (routesVisible && selectedIncident && units.length > 0) drawRoutes()
   }
 
   useEffect(() => {
@@ -282,51 +260,25 @@ export default function MapDisplay({
   return (
     <div className="map-container panel">
       <div ref={mapRef} style={{ width: '100%', height: 520, minHeight: 520 }} />
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: 8,
-          background: '#f8fafc',
-          borderTop: '1px solid #e2e8f0',
-          fontSize: 12,
-          color: '#64748b',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: 12, color: '#64748b' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
-            onClick={() => {
-              setRoutesVisible((v) => !v)
-              if (routesVisible) clearRoutes()
-            }}
-            style={{
-              padding: '4px 12px',
-              background: routesVisible ? '#ef4444' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 'bold',
-            }}
+            onClick={() => { setRoutesVisible((v) => !v); if (routesVisible) clearRoutes() }}
+            style={{ padding: '4px 12px', background: routesVisible ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            {routesVisible ? '❌ Hide Routes' : '🔄 Show Routes'}
+            {routesVisible ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/></svg>
+            )}
+            {routesVisible ? 'Hide Routes' : 'Show Routes'}
           </button>
           <button
             onClick={resetMap}
-            style={{
-              padding: '4px 12px',
-              background: '#6b7280',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 'bold',
-            }}
+            style={{ padding: '4px 12px', background: '#6b7280', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            🗺️ Reset Map
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset Map
           </button>
           <span style={{ fontStyle: 'italic', marginLeft: 8 }}>
             {routesVisible && selectedIncident

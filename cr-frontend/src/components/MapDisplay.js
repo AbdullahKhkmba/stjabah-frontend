@@ -198,6 +198,7 @@ export default function MapDisplay({
     markers.units = {}
 
     const incidentIcon = createIncidentIcon()
+
     if (displayCoords) {
       const pos = normToLatLng(displayCoords)
       if (pos && incidentIcon) {
@@ -206,7 +207,9 @@ export default function MapDisplay({
         markers.incidents['display'] = m
       }
     } else {
+      // ✅ Fixed: show all non-resolved incidents regardless of specific status string
       const activeIncidents = incidents.filter((i) => i.status !== 'resolved')
+      console.log('Rendering incidents:', activeIncidents) // remove once confirmed working
       activeIncidents.forEach((inc) => {
         const loc = getLoc(inc)
         const pos = loc ? normToLatLng(loc) : null

@@ -18,9 +18,11 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
   const [incidentLocation, setIncidentLocation] = useState(null)
   const clickHandlerRef = useRef(onMapClick)
   const unitPreviewCoordsRef = useRef(unitPreviewCoords)
+  const unitsRef = useRef(units)
 
   useEffect(() => { clickHandlerRef.current = onMapClick }, [onMapClick])
   useEffect(() => { unitPreviewCoordsRef.current = unitPreviewCoords }, [unitPreviewCoords])
+  useEffect(() => { unitsRef.current = units }, [units])
 
   const CENTER = [30.063584, 31.488994]
   const ZOOM = 15
@@ -130,7 +132,7 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
       if (!mapRef.current || mapInstanceRef.current) return
       const L = window.L
       const map = L.map(mapRef.current).setView(CENTER, ZOOM)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap | OSRM', maxZoom: 19 }).addTo(map)
       map.on('click', (e) => clickHandlerRef.current?.(latLngToNorm(e.latlng.lat, e.latlng.lng)))
       mapInstanceRef.current = map
       setTimeout(updateMarkers, 100)
@@ -163,11 +165,12 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
     }
 
     // Unit marker — use preview coords when editing, otherwise real unit location
-    const unitSource = unitPreviewCoordsRef.current ?? (units[0] ? getLoc(units[0]) : null)
+    const currentUnits = unitsRef.current
+    const unitSource = unitPreviewCoordsRef.current ?? (currentUnits[0] ? getLoc(currentUnits[0]) : null)
     const unitPos = unitSource ? normToLatLng(unitSource) : null
     if (unitPos) {
       const m = L.marker(unitPos, { icon: createUnitIcon() }).addTo(map)
-      m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${units[0]?.id ?? 'Unit'}</div><div style="font-size:11px;color:#666">x: ${unitSource.x.toFixed(3)} y: ${unitSource.y.toFixed(3)}</div>`)
+      m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${currentUnits[0]?.id ?? 'Unit'}</div><div style="font-size:11px;color:#666">x: ${unitSource.x.toFixed(3)} y: ${unitSource.y.toFixed(3)}</div>`)
       markers.unit = m
     }
 
@@ -186,7 +189,7 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
       } else {
         // Create unit marker for the first time without touching incident marker
         const m = window.L.marker(pos, { icon: createUnitIcon() }).addTo(mapInstanceRef.current)
-        m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${units[0]?.id ?? 'Unit'}</div>`)
+        m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${unitsRef.current[0]?.id ?? 'Unit'}</div>`)
         markersRef.current.unit = m
       }
     }
@@ -215,10 +218,10 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reset Map
           </button>
-            <span style={{ fontStyle: 'italic', marginLeft: 8 }}>
+          <span style={{ fontStyle: 'italic', marginLeft: 8 }}>
             {routesVisible && selectedIncident
               ? `Routes from ${units.length} unit${units.length !== 1 ? 's' : ''} to incident`
-              : 'Show route to incident location'}
+              : 'Show routes to incident location'}
           </span>
         </div>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>

@@ -72,7 +72,7 @@ export default function IncidentPanel({
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ x: 0, y: 0 })
 
-  const incident = openIncident
+const incident = openIncident?.status === 'resolved' ? null : openIncident
 
   useEffect(() => {
     if (selectedLocation) setForm({ x: selectedLocation.x, y: selectedLocation.y })

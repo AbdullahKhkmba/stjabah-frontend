@@ -25,7 +25,7 @@ const raw = {
   getUnit: () => axios.get(`${ERT_BASE}/unit`),
   getUnitLocation: () => axios.get(`${ERT_BASE}/unit/location`),
   updateUnitLocation: (body) => axios.put(`${ERT_BASE}/unit/location`, body),
-  resolveUnit: () => axios.put(`${ERT_BASE}/unit/resolve`),
+  resolveUnit: () => axios.put(`${ERT_BASE}/incident/resolve`),
 }
 
 export default {

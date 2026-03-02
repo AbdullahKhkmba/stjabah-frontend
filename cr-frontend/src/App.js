@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import MapDisplay from './components/MapDisplay'
 import IncidentPanel from './components/IncidentPanel'
 import api from './services/api'
@@ -10,6 +10,11 @@ export default function App() {
   const [assignMode, setAssignMode] = useState(false)
   const [mapClickCoords, setMapClickCoords] = useState(null)
   const [displayCoords, setDisplayCoords] = useState(null)
+
+  const openIncidentRef = useRef(openIncident)
+  useEffect(() => {
+    openIncidentRef.current = openIncident
+  }, [openIncident])
 
   const refresh = useCallback(async () => {
     try {
@@ -31,18 +36,24 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!openIncident) return
-    const pollUnits = async () => {
+    const poll = async () => {
+      if (!openIncidentRef.current) return
       try {
-        const unitList = await api.getUnitsOpenIncident()
+        const [incList, open, unitList] = await Promise.all([
+          api.getIncidents(),
+          api.getOpenIncident(),
+          api.getUnitsOpenIncident(),
+        ])
+        setIncidents(incList || [])
+        setOpenIncident(open)
         setUnits(unitList || [])
       } catch {
         setUnits([])
       }
     }
-    const id = setInterval(pollUnits, 1000)
+    const id = setInterval(poll, 1000)
     return () => clearInterval(id)
-  }, [openIncident])
+  }, [])
 
   const handleMapClick = (coords) => {
     if (assignMode) setMapClickCoords(coords)

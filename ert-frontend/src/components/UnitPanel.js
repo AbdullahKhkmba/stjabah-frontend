@@ -84,7 +84,7 @@ export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAs
         </div>
 
         {isEditing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: '#f9fafb', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, border: '1px solid #e2e8f0' }}>
             <CoordBoxes vals={editForm} onChange={(axis, val) => setEditForm((f) => ({ ...f, [axis]: val }))} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button className={`btn ${isAssigning ? 'danger' : 'secondary'}`} style={{ width: '100%' }} onClick={() => isAssigning ? onCancelAssign?.() : onStartAssign?.()}>

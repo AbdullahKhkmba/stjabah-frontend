@@ -38,9 +38,8 @@ const CoordBoxes = ({ vals, onChange }) => (
   </div>
 )
 
-// Haversine formula — accurate real-world distance in meters between two lat/lng points
 function haversineMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000 // Earth radius in metres
+  const R = 6371000
   const toRad = (d) => (d * Math.PI) / 180
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
@@ -50,14 +49,17 @@ function haversineMeters(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-const RESOLVE_MIN_DISTANCE_M = 50
+function isRealLatLng(lat, lng) {
+  return Math.abs(lat) > 1 || Math.abs(lng) > 1
+}
+
+const RESOLVE_MAX_DISTANCE_M = 50
 
 export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAssign, onCancelAssign, onDisplayCoordsChange, isAssigning = false }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({ lat: 0, lng: 0 })
   const [incidentLocation, setIncidentLocation] = useState(null)
 
-  // Poll incident location every 3s
   useEffect(() => {
     const fetchInc = async () => {
       try {
@@ -70,13 +72,11 @@ export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAs
     return () => clearInterval(id)
   }, [])
 
-  // Sync map-picked coords into edit form
   useEffect(() => {
     if (selectedLocation && isEditing)
       setEditForm({ lat: selectedLocation.lat, lng: selectedLocation.lng })
   }, [selectedLocation, isEditing])
 
-  // Tell parent what to preview on map while editing
   useEffect(() => {
     if (isEditing) onDisplayCoordsChange?.({ lat: editForm.lat, lng: editForm.lng })
     else onDisplayCoordsChange?.(null)
@@ -112,11 +112,18 @@ export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAs
   const incLat = incidentLocation?.location?.lat ?? incidentLocation?.lat
   const incLng = incidentLocation?.location?.lng ?? incidentLocation?.lng
 
-  const distanceM = (incLat !== undefined && incLng !== undefined)
+  const hasValidCoords =
+    incLat !== undefined &&
+    incLng !== undefined &&
+    isRealLatLng(unitLat, unitLng) &&
+    isRealLatLng(incLat, incLng)
+
+  const distanceM = hasValidCoords
     ? Math.round(haversineMeters(unitLat, unitLng, incLat, incLng))
     : null
 
-  const isFarEnough = distanceM !== null && distanceM >= RESOLVE_MIN_DISTANCE_M
+  // Resolve is enabled when unit is CLOSE to incident (within 50m)
+  const canResolve = distanceM !== null && distanceM <= RESOLVE_MAX_DISTANCE_M
 
   return (
     <div className="panel">
@@ -157,25 +164,30 @@ export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAs
               </div>
             </div>
 
-            {/* Distance badge — only shown when incident location is known */}
-            {distanceM !== null && (
+            {distanceM !== null ? (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                background: isFarEnough ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${isFarEnough ? '#bbf7d0' : '#fecaca'}`,
+                background: canResolve ? '#f0fdf4' : '#fef2f2',
+                border: `1px solid ${canResolve ? '#bbf7d0' : '#fecaca'}`,
                 borderRadius: 8, padding: '8px 12px', fontSize: 12,
               }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke={isFarEnough ? '#16a34a' : '#dc2626'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke={canResolve ? '#16a34a' : '#dc2626'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="12" />
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <span style={{ color: isFarEnough ? '#15803d' : '#dc2626', fontWeight: 600 }}>
-                  {isFarEnough
+                <span style={{ color: canResolve ? '#15803d' : '#dc2626', fontWeight: 600 }}>
+                  {canResolve
                     ? `${distanceM}m from incident — ready to resolve`
-                    : `${distanceM}m from incident — move ${RESOLVE_MIN_DISTANCE_M}m+ away to resolve`}
+                    : `${distanceM}m from incident — move within ${RESOLVE_MAX_DISTANCE_M}m to resolve`}
                 </span>
               </div>
+            ) : (
+              incLat !== undefined && (
+                <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                  Waiting for valid location data…
+                </div>
+              )
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -188,15 +200,15 @@ export default function UnitPanel({ unit, onRefresh, selectedLocation, onStartAs
               </button>
               <button
                 className="btn primary"
-                disabled={!isFarEnough}
-                onClick={isFarEnough ? resolve : undefined}
-                title={!isFarEnough
-                  ? `Unit must be at least ${RESOLVE_MIN_DISTANCE_M}m from the incident (currently ${distanceM ?? '?'}m)`
+                disabled={!canResolve}
+                onClick={canResolve ? resolve : undefined}
+                title={!canResolve
+                  ? `Move within ${RESOLVE_MAX_DISTANCE_M}m of the incident to resolve (currently ${distanceM ?? '?'}m away)`
                   : 'Resolve incident'}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
-                  opacity: isFarEnough ? 1 : 0.45,
-                  cursor: isFarEnough ? 'pointer' : 'not-allowed',
+                  opacity: canResolve ? 1 : 0.45,
+                  cursor: canResolve ? 'pointer' : 'not-allowed',
                 }}
               >
                 <CheckCircle /> Resolve

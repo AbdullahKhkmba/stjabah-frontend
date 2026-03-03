@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react'
 
 const getLoc = (obj) => {
   if (!obj) return null
-  const x = obj.location?.x ?? obj.x
-  const y = obj.location?.y ?? obj.y
-  if (x === undefined || y === undefined) return null
-  return { x, y }
+  const lat = obj.location?.lat ?? obj.lat
+  const lng = obj.location?.lng ?? obj.lng
+  if (lat === undefined || lng === undefined) return null
+  return { lat, lng }
 }
 
 export default function MapDisplay({
@@ -27,22 +27,13 @@ export default function MapDisplay({
   const CENTER = [30.063584, 31.488994]
   const ZOOM = 15
 
-  const normToLatLng = (norm) => {
-    if (!norm || norm.x === undefined || norm.y === undefined) return null
-    const latOffset = (0.5 - norm.y) * 0.1
-    const lngOffset = (norm.x - 0.5) * 0.1
-    return [CENTER[0] + latOffset, CENTER[1] + lngOffset]
-  }
-
-  const latLngToNorm = (lat, lng) => {
-    const latOffset = lat - CENTER[0]
-    const lngOffset = lng - CENTER[1]
-    const x = 0.5 + (lngOffset / 0.1)
-    const y = 0.5 - (latOffset / 0.1)
-    return {
-      x: parseFloat(Math.max(0, Math.min(1, x)).toFixed(4)),
-      y: parseFloat(Math.max(0, Math.min(1, y)).toFixed(4)),
-    }
+  // lat/lng used directly — no normalization needed
+  const toLeaflet = (loc) => {
+    if (!loc) return null
+    const lat = loc.lat ?? loc.location?.lat
+    const lng = loc.lng ?? loc.location?.lng
+    if (lat === undefined || lng === undefined) return null
+    return [lat, lng]
   }
 
   const createIncidentIcon = () => {
@@ -79,19 +70,16 @@ export default function MapDisplay({
     })
   }
 
-  const drawRoute = (fromLatLng, toLatLng, color = '#3b82f6', label = '') => {
+  const drawRoute = (fromLatLng, toLatLng, color = '#3b82f6') => {
     if (!window.L || !mapInstanceRef.current) return
     const L = window.L
     const map = mapInstanceRef.current
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${fromLatLng[1]},${fromLatLng[0]};${toLatLng[1]},${toLatLng[0]}?overview=full&geometries=geojson`
-
-    fetch(osrmUrl)
+    fetch(`https://router.project-osrm.org/route/v1/driving/${fromLatLng[1]},${fromLatLng[0]};${toLatLng[1]},${toLatLng[0]}?overview=full&geometries=geojson`)
       .then((r) => r.json())
       .then((data) => {
         if (data.code === 'Ok') {
           const route = data.routes[0]
-          const coords = route.geometry.coordinates.map((c) => [c[1], c[0]])
-          const line = L.polyline(coords, { color, weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(map)
+          const line = L.polyline(route.geometry.coordinates.map((c) => [c[1], c[0]]), { color, weight: 4, opacity: 0.7, dashArray: '10, 10' }).addTo(map)
           const distKm = (route.distance / 1000).toFixed(2)
           const labelMarker = L.marker(fromLatLng, {
             icon: L.divIcon({
@@ -115,8 +103,8 @@ export default function MapDisplay({
 
   const clearRoutes = () => {
     routesRef.current.forEach(({ route, label }) => {
-      if (route?.remove) route.remove()
-      if (label?.remove) label.remove()
+      route?.remove?.()
+      label?.remove?.()
     })
     routesRef.current = []
   }
@@ -124,13 +112,12 @@ export default function MapDisplay({
   const drawRoutes = () => {
     if (!selectedIncident || !units.length) return
     const incLoc = getLoc(selectedIncident)
-    const incLatLng = incLoc ? normToLatLng(incLoc) : null
-    if (!incLatLng) return
+    const incPos = toLeaflet(incLoc)
+    if (!incPos) return
     const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444']
     units.forEach((u, i) => {
-      const loc = getLoc(u)
-      const latLng = loc ? normToLatLng(loc) : null
-      if (latLng) drawRoute(latLng, incLatLng, colors[i % colors.length], u.id)
+      const pos = toLeaflet(getLoc(u))
+      if (pos) drawRoute(pos, incPos, colors[i % colors.length])
     })
   }
 
@@ -169,9 +156,9 @@ export default function MapDisplay({
         attribution: '© OpenStreetMap | OSRM',
         maxZoom: 19,
       }).addTo(map)
+      // Pass real lat/lng directly from Leaflet click event
       map.on('click', (e) => {
-        const norm = latLngToNorm(e.latlng.lat, e.latlng.lng)
-        clickHandlerRef.current?.(norm)
+        clickHandlerRef.current?.({ lat: e.latlng.lat, lng: e.latlng.lng })
       })
       mapInstanceRef.current = map
       setTimeout(updateMarkers, 100)
@@ -200,25 +187,22 @@ export default function MapDisplay({
     const incidentIcon = createIncidentIcon()
 
     if (displayCoords) {
-      const pos = normToLatLng(displayCoords)
+      const pos = toLeaflet(displayCoords)
       if (pos && incidentIcon) {
         const m = L.marker(pos, { icon: incidentIcon }).addTo(map)
-        m.bindPopup(`<div style="font-weight:bold;color:#dc2626">Incident</div><div style="font-size:11px;color:#666">x: ${(displayCoords.x ?? 0).toFixed(3)} y: ${(displayCoords.y ?? 0).toFixed(3)}</div>`)
+        m.bindPopup(`<div style="font-weight:bold;color:#dc2626">Incident</div><div style="font-size:11px;color:#666">lat: ${(displayCoords.lat ?? 0).toFixed(5)}<br/>lng: ${(displayCoords.lng ?? 0).toFixed(5)}</div>`)
         markers.incidents['display'] = m
       }
     } else {
-      // ✅ Fixed: show all non-resolved incidents regardless of specific status string
-      const activeIncidents = incidents.filter((i) => i.status !== 'resolved')
-      console.log('Rendering incidents:', activeIncidents) // remove once confirmed working
-      activeIncidents.forEach((inc) => {
+      incidents.filter((i) => i.status !== 'resolved').forEach((inc) => {
         const loc = getLoc(inc)
-        const pos = loc ? normToLatLng(loc) : null
+        const pos = toLeaflet(loc)
         if (pos && incidentIcon) {
           const marker = L.marker(pos, { icon: incidentIcon }).addTo(map)
           marker.bindPopup(`
             <div style="font-weight:bold;color:#dc2626">Incident</div>
             <div>Status: ${inc.status}</div>
-            <div style="font-size:11px;color:#666">x: ${(loc?.x ?? 0).toFixed(3)} y: ${(loc?.y ?? 0).toFixed(3)}</div>
+            <div style="font-size:11px;color:#666">lat: ${(loc.lat ?? 0).toFixed(5)}<br/>lng: ${(loc.lng ?? 0).toFixed(5)}</div>
           `)
           markers.incidents[inc.id] = marker
         }
@@ -228,12 +212,12 @@ export default function MapDisplay({
     const unitIcon = createUnitIcon()
     units.forEach((u) => {
       const loc = getLoc(u)
-      const pos = loc ? normToLatLng(loc) : null
+      const pos = toLeaflet(loc)
       if (pos && unitIcon) {
         const marker = L.marker(pos, { icon: unitIcon }).addTo(map)
         marker.bindPopup(`
           <div style="font-weight:bold;color:#3b82f6">🚗 ${u.id}</div>
-          <div style="font-size:11px;color:#666">x: ${(loc?.x ?? 0).toFixed(3)} y: ${(loc?.y ?? 0).toFixed(3)}</div>
+          <div style="font-size:11px;color:#666">lat: ${(loc.lat ?? 0).toFixed(5)}<br/>lng: ${(loc.lng ?? 0).toFixed(5)}</div>
         `)
         markers.units[u.id] = marker
       }
@@ -243,11 +227,12 @@ export default function MapDisplay({
     if (routesVisible && selectedIncident && units.length > 0) drawRoutes()
   }
 
+  // Live-move display marker when coords change (map pick / edit)
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L || !displayCoords) return
     const m = markersRef.current.incidents['display']
     if (m) {
-      const pos = normToLatLng(displayCoords)
+      const pos = toLeaflet(displayCoords)
       if (pos) m.setLatLng(pos)
     } else {
       updateMarkers()
@@ -290,7 +275,7 @@ export default function MapDisplay({
           </span>
         </div>
         <span style={{ fontSize: 11, color: '#94a3b8' }}>
-          OSRM | 🚗 {units.length} | 🚨 {activeCount ? 1 : 0}
+          OSRM | 🚗 {units.length} | 🚨 {activeCount}
         </span>
       </div>
     </div>

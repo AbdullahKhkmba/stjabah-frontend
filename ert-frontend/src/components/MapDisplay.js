@@ -3,10 +3,10 @@ import api from '../services/api'
 
 const getLoc = (obj) => {
   if (!obj) return null
-  const x = obj.location?.x ?? obj.x
-  const y = obj.location?.y ?? obj.y
-  if (x === undefined || y === undefined) return null
-  return { x, y }
+  const lat = obj.location?.lat ?? obj.lat
+  const lng = obj.location?.lng ?? obj.lng
+  if (lat === undefined || lng === undefined) return null
+  return { lat, lng }
 }
 
 export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }) {
@@ -27,15 +27,13 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
   const CENTER = [30.063584, 31.488994]
   const ZOOM = 15
 
-  const normToLatLng = (norm) => {
-    if (!norm || norm.x === undefined || norm.y === undefined) return null
-    return [CENTER[0] + (0.5 - norm.y) * 0.1, CENTER[1] + (norm.x - 0.5) * 0.1]
+  const toLeaflet = (loc) => {
+    if (!loc) return null
+    const lat = loc.lat ?? loc.location?.lat
+    const lng = loc.lng ?? loc.location?.lng
+    if (lat === undefined || lng === undefined) return null
+    return [lat, lng]
   }
-
-  const latLngToNorm = (lat, lng) => ({
-    x: parseFloat(Math.max(0, Math.min(1, 0.5 + (lng - CENTER[1]) / 0.1)).toFixed(4)),
-    y: parseFloat(Math.max(0, Math.min(1, 0.5 - (lat - CENTER[0]) / 0.1)).toFixed(4)),
-  })
 
   const createIncidentIcon = () => {
     if (!window.L) return null
@@ -105,11 +103,10 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
     setRoutesVisible(false)
   }
 
-  // Poll incident location every 3s
   useEffect(() => {
-    const fetch = async () => setIncidentLocation(await api.getIncidentLocation())
-    fetch()
-    const id = setInterval(fetch, 3000)
+    const fetchInc = async () => setIncidentLocation(await api.getIncidentLocation())
+    fetchInc()
+    const id = setInterval(fetchInc, 3000)
     return () => clearInterval(id)
   }, [])
 
@@ -133,7 +130,10 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
       const L = window.L
       const map = L.map(mapRef.current).setView(CENTER, ZOOM)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap | OSRM', maxZoom: 19 }).addTo(map)
-      map.on('click', (e) => clickHandlerRef.current?.(latLngToNorm(e.latlng.lat, e.latlng.lng)))
+      // Pass real lat/lng directly from Leaflet click event
+      map.on('click', (e) => {
+        clickHandlerRef.current?.({ lat: e.latlng.lat, lng: e.latlng.lng })
+      })
       mapInstanceRef.current = map
       setTimeout(updateMarkers, 100)
     }
@@ -155,22 +155,20 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
     markers.incident = null
     markers.unit = null
 
-    // Incident marker — always from fetched incidentLocation
     const incLoc = getLoc(incidentLocation)
-    const incPos = incLoc ? normToLatLng(incLoc) : null
+    const incPos = toLeaflet(incLoc)
     if (incPos) {
       const m = L.marker(incPos, { icon: createIncidentIcon() }).addTo(map)
-      m.bindPopup(`<div style="font-weight:bold;color:#dc2626">Incident</div><div style="font-size:11px;color:#666">x: ${incLoc.x.toFixed(3)} y: ${incLoc.y.toFixed(3)}</div>`)
+      m.bindPopup(`<div style="font-weight:bold;color:#dc2626">Incident</div><div style="font-size:11px;color:#666">lat: ${incLoc.lat.toFixed(5)}<br/>lng: ${incLoc.lng.toFixed(5)}</div>`)
       markers.incident = m
     }
 
-    // Unit marker — use preview coords when editing, otherwise real unit location
     const currentUnits = unitsRef.current
     const unitSource = unitPreviewCoordsRef.current ?? (currentUnits[0] ? getLoc(currentUnits[0]) : null)
-    const unitPos = unitSource ? normToLatLng(unitSource) : null
+    const unitPos = toLeaflet(unitSource)
     if (unitPos) {
       const m = L.marker(unitPos, { icon: createUnitIcon() }).addTo(map)
-      m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${currentUnits[0]?.id ?? 'Unit'}</div><div style="font-size:11px;color:#666">x: ${unitSource.x.toFixed(3)} y: ${unitSource.y.toFixed(3)}</div>`)
+      m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${currentUnits[0]?.id ?? 'Unit'}</div><div style="font-size:11px;color:#666">lat: ${unitSource.lat.toFixed(5)}<br/>lng: ${unitSource.lng.toFixed(5)}</div>`)
       markers.unit = m
     }
 
@@ -178,16 +176,15 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
     if (routesVisible && incPos && unitPos) drawRoute(unitPos, incPos)
   }
 
-  // Live-move unit marker when preview coords change (map pick)
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return
     const preview = unitPreviewCoordsRef.current
     if (preview) {
-      const pos = normToLatLng(preview)
+      const pos = toLeaflet(preview)
+      if (!pos) return
       if (markersRef.current.unit) {
         markersRef.current.unit.setLatLng(pos)
       } else {
-        // Create unit marker for the first time without touching incident marker
         const m = window.L.marker(pos, { icon: createUnitIcon() }).addTo(mapInstanceRef.current)
         m.bindPopup(`<div style="font-weight:bold;color:#16a34a">🚗 ${unitsRef.current[0]?.id ?? 'Unit'}</div>`)
         markersRef.current.unit = m
@@ -219,7 +216,7 @@ export default function MapDisplay({ units = [], unitPreviewCoords, onMapClick }
             Reset Map
           </button>
           <span style={{ fontStyle: 'italic', marginLeft: 8 }}>
-            {routesVisible && selectedIncident
+            {routesVisible && incidentLocation
               ? `Routes from ${units.length} unit${units.length !== 1 ? 's' : ''} to incident`
               : 'Show routes to incident location'}
           </span>

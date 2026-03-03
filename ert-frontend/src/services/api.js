@@ -3,12 +3,12 @@ import axios from 'axios'
 const CR_BASE = process.env.REACT_APP_API_BASE || 'http://127.0.0.1:5001/cr'
 const ERT_BASE = process.env.REACT_APP_ERT_API_BASE || 'http://127.0.0.1:5002/ert'
 
-// Adapters: backends use flat {x, y}; frontend expects {location: {x, y}}
+// Adapters: backends use flat {lat, lng}; frontend expects {location: {lat, lng}}
 export const toIncident = (inc) =>
-  inc ? { ...inc, location: { x: inc.x ?? 0, y: inc.y ?? 0 } } : null
+  inc ? { ...inc, location: { lat: inc.lat ?? 0, lng: inc.lng ?? 0 } } : null
 
 export const toUnit = (u) =>
-  u ? { ...u, location: { x: u.x ?? 0, y: u.y ?? 0 } } : null
+  u ? { ...u, location: { lat: u.lat ?? 0, lng: u.lng ?? 0 } } : null
 
 export const toIncidentList = (data) =>
   (Array.isArray(data) ? data : []).map(toIncident)
@@ -52,7 +52,7 @@ export default {
     }
   },
 
-  // Full unit info (id, status, x, y, ...)
+  // Full unit info (id, status, lat, lng, ...)
   async getUnit() {
     try {
       const res = await raw.getUnit()
@@ -73,9 +73,9 @@ export default {
     }
   },
 
-  // Called by UnitPanel — id param kept for interface consistency but not used (single-unit backend)
-  async updateUnit(_id, { x, y }) {
-    const res = await raw.updateUnitLocation({ x, y })
+  // Called by UnitPanel — sends lat/lng directly to backend
+  async updateUnit(_id, { lat, lng }) {
+    const res = await raw.updateUnitLocation({ lat, lng })
     return toUnit(res.data)
   },
 

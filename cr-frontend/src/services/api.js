@@ -2,12 +2,12 @@ import axios from 'axios'
 
 const BASE = process.env.REACT_APP_API_BASE || 'http://127.0.0.1:5001/cr'
 
-// Adapters: control_room uses flat {x, y}; frontend expects {location: {x, y}}
+// Adapters: control_room uses flat {lat, lng}; frontend expects {location: {lat, lng}}
 export const toIncident = (inc) =>
-  inc ? { ...inc, location: { x: inc.x ?? 0, y: inc.y ?? 0 } } : null
+  inc ? { ...inc, location: { lat: inc.lat ?? 0, lng: inc.lng ?? 0 } } : null
 
 export const toUnit = (u) =>
-  u ? { ...u, location: { x: u.x ?? 0, y: u.y ?? 0 } } : null
+  u ? { ...u, location: { lat: u.lat ?? 0, lng: u.lng ?? 0 } } : null
 
 export const toIncidentList = (data) =>
   (Array.isArray(data) ? data : []).map(toIncident)
@@ -47,16 +47,16 @@ export default {
       return null
     }
   },
-  async createIncident({ x, y }) {
-    const res = await raw.createIncident({ x, y })
+  async createIncident({ lat, lng }) {
+    const res = await raw.createIncident({ lat, lng })
     return toIncident(res.data)
   },
-  async updateIncident(id, { x, y }) {
-    const res = await raw.updateIncident(id, { x, y })
+  async updateIncident(id, { lat, lng }) {
+    const res = await raw.updateIncident(id, { lat, lng })
     return toIncident(res.data)
   },
   deleteIncident: raw.deleteIncident,
-  
+
   async dispatchIncident() {
     await raw.dispatchIncident()
   },

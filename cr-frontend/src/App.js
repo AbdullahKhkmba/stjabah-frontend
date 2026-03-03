@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import MapDisplay from './components/MapDisplay'
 import IncidentPanel from './components/IncidentPanel'
+import ResolvedIncidents from './components/ResolvedIncidents'
 import api from './services/api'
 
 export default function App() {
@@ -66,6 +67,22 @@ export default function App() {
     refresh()
   }
 
+  // Use lat/lng directly from the incident's location
+  const handleViewOnMap = (inc) => {
+    const loc = inc.location ?? { lat: inc.lat, lng: inc.lng }
+    if (loc) setDisplayCoords(loc)
+  }
+
+  const handleDeleteIncident = async (inc) => {
+    if (!window.confirm(`Delete incident #${inc.id}?`)) return
+    try {
+      await api.deleteIncident(inc.id)
+      refresh()
+    } catch (err) {
+      console.error('Delete failed', err)
+    }
+  }
+
   return (
     <div className="app-root">
       <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -98,6 +115,11 @@ export default function App() {
             onCreated={handleIncidentCreated}
             onDisplayCoordsChange={setDisplayCoords}
             isAssigning={assignMode}
+          />
+          <ResolvedIncidents
+            incidents={incidents}
+            onViewOnMap={handleViewOnMap}
+            onDelete={handleDeleteIncident}
           />
         </div>
       </div>

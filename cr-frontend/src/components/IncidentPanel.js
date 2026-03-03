@@ -41,13 +41,16 @@ const formatTime = (iso) => {
 
 const CoordBoxes = ({ vals, onChange }) => (
   <div style={{ display: 'flex', gap: 12 }}>
-    {['x', 'y'].map((axis) => (
+    {['lat', 'lng'].map((axis) => (
       <div key={axis} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-        <label style={{ fontSize: 12, marginBottom: 4, fontWeight: 600 }}>{axis.toUpperCase()}</label>
+        <label style={{ fontSize: 12, marginBottom: 4, fontWeight: 600 }}>
+          {axis === 'lat' ? 'Latitude' : 'Longitude'}
+        </label>
         <input
           type="number"
+          step="0.00001"
           className="form-input"
-          style={{ width: '100%', height: 80, textAlign: 'center', fontSize: 20, fontWeight: 700 }}
+          style={{ width: '100%', height: 80, textAlign: 'center', fontSize: 16, fontWeight: 700 }}
           value={vals[axis]}
           onChange={(e) => onChange(axis, parseFloat(e.target.value) || 0)}
         />
@@ -68,31 +71,33 @@ export default function IncidentPanel({
   isAssigning = false,
 }) {
   const [isCreating, setIsCreating] = useState(false)
-  const [form, setForm] = useState({ x: 0, y: 0 })
+  const [form, setForm] = useState({ lat: 0, lng: 0 })
   const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ x: 0, y: 0 })
+  const [editForm, setEditForm] = useState({ lat: 0, lng: 0 })
 
-const incident = openIncident?.status === 'resolved' ? null : openIncident
+  const incident = openIncident?.status === 'resolved' ? null : openIncident
 
+  // Sync map-picked coords into whichever form is active
   useEffect(() => {
-    if (selectedLocation) setForm({ x: selectedLocation.x, y: selectedLocation.y })
+    if (selectedLocation) setForm({ lat: selectedLocation.lat, lng: selectedLocation.lng })
   }, [selectedLocation])
 
   useEffect(() => {
-    if (selectedLocation && editingId) setEditForm({ x: selectedLocation.x, y: selectedLocation.y })
+    if (selectedLocation && editingId) setEditForm({ lat: selectedLocation.lat, lng: selectedLocation.lng })
   }, [selectedLocation, editingId])
 
+  // Tell map what to preview while creating/editing
   useEffect(() => {
-    if (isCreating) onDisplayCoordsChange?.({ x: form.x, y: form.y })
-    else if (editingId) onDisplayCoordsChange?.({ x: editForm.x, y: editForm.y })
+    if (isCreating) onDisplayCoordsChange?.({ lat: form.lat, lng: form.lng })
+    else if (editingId) onDisplayCoordsChange?.({ lat: editForm.lat, lng: editForm.lng })
     else onDisplayCoordsChange?.(null)
-  }, [isCreating, editingId, form.x, form.y, editForm.x, editForm.y])
+  }, [isCreating, editingId, form.lat, form.lng, editForm.lat, editForm.lng])
 
   const create = async () => {
     try {
-      await api.createIncident(form)
+      await api.createIncident({ lat: form.lat, lng: form.lng })
       setIsCreating(false)
-      setForm({ x: 0, y: 0 })
+      setForm({ lat: 0, lng: 0 })
       onRefresh?.()
       onCreated?.()
     } catch (e) {
@@ -103,14 +108,14 @@ const incident = openIncident?.status === 'resolved' ? null : openIncident
   const startEdit = () => {
     setEditingId(incident.id)
     setEditForm({
-      x: incident.location?.x ?? incident.x ?? 0,
-      y: incident.location?.y ?? incident.y ?? 0,
+      lat: incident.location?.lat ?? incident.lat ?? 0,
+      lng: incident.location?.lng ?? incident.lng ?? 0,
     })
   }
 
   const saveEdit = async () => {
     try {
-      await api.updateIncident(incident.id, editForm)
+      await api.updateIncident(incident.id, { lat: editForm.lat, lng: editForm.lng })
       setEditingId(null)
       onRefresh?.()
     } catch (e) {
@@ -145,11 +150,7 @@ const incident = openIncident?.status === 'resolved' ? null : openIncident
       {!incident && !isCreating && (
         <>
           <h3 style={{ marginBottom: 12 }}>Active Incident</h3>
-          <button
-            className="btn primary"
-            style={{ width: '100%' }}
-            onClick={() => setIsCreating(true)}
-          >
+          <button className="btn primary" style={{ width: '100%' }} onClick={() => setIsCreating(true)}>
             + New Incident
           </button>
         </>
@@ -158,41 +159,16 @@ const incident = openIncident?.status === 'resolved' ? null : openIncident
       {isCreating && (
         <>
           <h3 style={{ marginBottom: 12 }}>Active Incident</h3>
-          <div
-            style={{
-              background: '#f9fafb',
-              borderRadius: 8,
-              padding: 12,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              border: '1px solid #e2e8f0',
-            }}
-          >
-          <CoordBoxes vals={form} onChange={(axis, val) => setForm((f) => ({ ...f, [axis]: val }))} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button
-              className={`btn ${isAssigning ? 'danger' : 'secondary'}`}
-              style={{ width: '100%' }}
-              onClick={() => (isAssigning ? onCancelAssign?.() : onStartAssign?.())}
-            >
-              {isAssigning ? 'Cancel map pick' : 'Assign from map'}
-            </button>
-            <button className="btn primary" style={{ width: '100%' }} onClick={create}>
-              Create
-            </button>
-            <button
-              className="btn"
-              style={{ width: '100%' }}
-              onClick={() => {
-                setIsCreating(false)
-                onCreated?.()
-              }}
-            >
-              Cancel
-            </button>
+          <div style={{ background: '#f9fafb', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 10, border: '1px solid #e2e8f0' }}>
+            <CoordBoxes vals={form} onChange={(axis, val) => setForm((f) => ({ ...f, [axis]: val }))} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button className={`btn ${isAssigning ? 'danger' : 'secondary'}`} style={{ width: '100%' }} onClick={() => (isAssigning ? onCancelAssign?.() : onStartAssign?.())}>
+                {isAssigning ? 'Cancel map pick' : 'Assign from map'}
+              </button>
+              <button className="btn primary" style={{ width: '100%' }} onClick={create}>Create</button>
+              <button className="btn" style={{ width: '100%' }} onClick={() => { setIsCreating(false); onCreated?.() }}>Cancel</button>
+            </div>
           </div>
-        </div>
         </>
       )}
 
@@ -200,41 +176,23 @@ const incident = openIncident?.status === 'resolved' ? null : openIncident
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <h3 style={{ margin: 0 }}>Active Incident</h3>
-            <span
-              style={{
-                background: incident.status === 'resolved' ? '#16a34a' : '#f97316',
-                color: 'white',
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '4px 10px',
-                borderRadius: 6,
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{
+              background: incident.status === 'resolved' ? '#16a34a' : '#f97316',
+              color: 'white', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, letterSpacing: 0.5,
+            }}>
               {(incident.status || 'ACTIVE').toUpperCase()}
             </span>
           </div>
 
           {isEditing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <CoordBoxes
-                vals={editForm}
-                onChange={(axis, val) => setEditForm((f) => ({ ...f, [axis]: val }))}
-              />
+              <CoordBoxes vals={editForm} onChange={(axis, val) => setEditForm((f) => ({ ...f, [axis]: val }))} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <button
-                  className={`btn ${isAssigning ? 'danger' : 'secondary'}`}
-                  style={{ width: '100%' }}
-                  onClick={() => (isAssigning ? onCancelAssign?.() : onStartAssign?.())}
-                >
+                <button className={`btn ${isAssigning ? 'danger' : 'secondary'}`} style={{ width: '100%' }} onClick={() => (isAssigning ? onCancelAssign?.() : onStartAssign?.())}>
                   {isAssigning ? 'Cancel map pick' : 'Assign from map'}
                 </button>
-                <button className="btn primary" style={{ width: '100%' }} onClick={saveEdit}>
-                  Save
-                </button>
-                <button className="btn" style={{ width: '100%' }} onClick={() => setEditingId(null)}>
-                  Cancel
-                </button>
+                <button className="btn primary" style={{ width: '100%' }} onClick={saveEdit}>Save</button>
+                <button className="btn" style={{ width: '100%' }} onClick={() => setEditingId(null)}>Cancel</button>
               </div>
             </div>
           ) : (
@@ -249,12 +207,12 @@ const incident = openIncident?.status === 'resolved' ? null : openIncident
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 8, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, fontWeight: 600 }}>X Coordinate</div>
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>{(incident.location?.x ?? incident.x ?? 0).toFixed(2)}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, fontWeight: 600 }}>Latitude</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{(incident.location?.lat ?? incident.lat ?? 0).toFixed(5)}</div>
                 </div>
                 <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 8, padding: '8px 12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, fontWeight: 600 }}>Y Coordinate</div>
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>{(incident.location?.y ?? incident.y ?? 0).toFixed(2)}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, fontWeight: 600 }}>Longitude</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{(incident.location?.lng ?? incident.lng ?? 0).toFixed(5)}</div>
                 </div>
               </div>
               {units.length > 0 && (
